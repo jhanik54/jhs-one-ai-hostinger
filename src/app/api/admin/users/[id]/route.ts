@@ -2,6 +2,7 @@ import { NextRequest,NextResponse } from 'next/server'
 import { randomBytes,createHash } from 'node:crypto'
 import { requireAdmin } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { appUrl } from '@/lib/app-url'
 export async function PATCH(req:NextRequest,ctx:{params:Promise<{id:string}>}) {
   try {
     const admin=await requireAdmin();const {id}=await ctx.params
@@ -14,7 +15,7 @@ export async function PATCH(req:NextRequest,ctx:{params:Promise<{id:string}>}) {
       if(body.status)await tx.user.update({where:{id},data:{status:body.status}})
       if(body.planId){await tx.subscription.updateMany({where:{userId:id,status:'approved'},data:{status:'cancelled'}});if(body.planId!=='NORMAL')await tx.subscription.create({data:{userId:id,planId:body.planId,status:'approved',priceAtRequest:0}})}
       if(body.status==='disabled'||body.resetPassword||body.revokeSessions)await tx.session.deleteMany({where:{userId:id}})
-      if(body.resetPassword){const token=randomBytes(32).toString('base64url');const tokenHash=createHash('sha256').update(token).digest('hex');await tx.passwordResetToken.create({data:{id:tokenHash,userId:id,expiresAt:new Date(Date.now()+3600000)}});resetUrl=`${process.env.APP_URL||req.nextUrl.origin}/reset-password?token=${encodeURIComponent(token)}`}
+      if(body.resetPassword){const token=randomBytes(32).toString('base64url');const tokenHash=createHash('sha256').update(token).digest('hex');await tx.passwordResetToken.create({data:{id:tokenHash,userId:id,expiresAt:new Date(Date.now()+3600000)}});const url=appUrl('/reset-password');url.searchParams.set('token',token);resetUrl=url.toString()}
       await tx.auditLog.create({data:{actorId:admin.id,action:body.resetPassword?'password_reset_initiated':body.revokeSessions?'sessions_revoked':'user_updated',target:id,metadata:{...(body.status?{status:body.status}:{}),...(body.planId?{planId:body.planId}:{})}}})
     })
     return NextResponse.json({success:true,...(resetUrl?{resetUrl}:{})})

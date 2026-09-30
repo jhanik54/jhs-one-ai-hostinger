@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { db } from '@/lib/db'
 import { createSession } from '@/lib/auth'
+import { appUrl } from '@/lib/app-url'
 export async function GET(req: NextRequest) {
-  const {searchParams}=new URL(req.url);const code=searchParams.get('code');const state=searchParams.get('state');const jar=await cookies();const expected=jar.get('jh_oauth_state')?.value
-  const fail=()=>NextResponse.redirect(new URL('/login?error=auth_failed',req.url))
+  const {searchParams}=req.nextUrl;const code=searchParams.get('code');const state=searchParams.get('state');const jar=await cookies();const expected=jar.get('jh_oauth_state')?.value
+  const fail=()=>{const response=NextResponse.redirect(appUrl('/login?error=auth_failed'));response.cookies.delete('jh_oauth_state');return response}
   if(!code||!state||!expected||state!==expected)return fail()
   const clientId=process.env.GOOGLE_CLIENT_ID;const clientSecret=process.env.GOOGLE_CLIENT_SECRET;const redirectUri=process.env.GOOGLE_REDIRECT_URI
   if(!clientId||!clientSecret||!redirectUri)return fail()
@@ -19,6 +20,6 @@ export async function GET(req: NextRequest) {
     if(user.status!=='active')return fail()
     if(process.env.INITIAL_SUPERADMIN_EMAIL?.toLowerCase()===email)await db.adminUser.upsert({where:{userId:user.id},create:{userId:user.id,role:'superadmin'},update:{role:'superadmin'}})
     await createSession(user.id);await db.userActivityLog.create({data:{userId:user.id,action:'google_login'}})
-    const response=NextResponse.redirect(new URL('/chat',req.url));response.cookies.delete('jh_oauth_state');return response
+    const response=NextResponse.redirect(appUrl('/chat'));response.cookies.delete('jh_oauth_state');return response
   } catch { return fail() }
 }
