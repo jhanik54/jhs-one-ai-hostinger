@@ -1,0 +1,2 @@
+const attempts=new Map<string,number[]>()
+export function rateLimited(key:string,limit:number,windowMs:number){const now=Date.now();const recent=(attempts.get(key)||[]).filter(time=>now-time<windowMs);if(recent.length>=limit){attempts.set(key,recent);return true}recent.push(now);attempts.set(key,recent);if(attempts.size>10000)for(const [id,times] of attempts)if(!times.some(time=>now-time<windowMs))attempts.delete(id);return false}

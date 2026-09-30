@@ -1,0 +1,5 @@
+import { NextRequest,NextResponse } from 'next/server'
+import { requireAdmin } from '@/lib/auth'
+import { db } from '@/lib/db'
+export async function GET(req:NextRequest){try{await requireAdmin();const page=Math.max(1,Number(req.nextUrl.searchParams.get('page')||1));const rows=await db.subscription.findMany({orderBy:{createdAt:'desc'},skip:(page-1)*50,take:50,include:{user:{select:{email:true,name:true}},plan:{select:{name:true}}}});return NextResponse.json(rows)}catch{return NextResponse.json({error:'Unauthorized'},{status:403})}}
+export async function PATCH(req:NextRequest){try{const admin=await requireAdmin();const {id,status}=await req.json() as {id?:string;status?:string};if(!id||!['pending','approved','rejected','cancelled'].includes(status||''))return NextResponse.json({error:'Invalid request.'},{status:400});const result=await db.subscription.update({where:{id},data:{status:status!}});await db.auditLog.create({data:{actorId:admin.id,action:'subscription_status_changed',target:id,metadata:{status}}});return NextResponse.json({success:true,status:result.status})}catch{return NextResponse.json({error:'Unable to update subscription.'},{status:403})}}

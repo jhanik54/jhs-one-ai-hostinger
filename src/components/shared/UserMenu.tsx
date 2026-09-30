@@ -1,11 +1,8 @@
 'use client'
 
 import { LogOut, User } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
 import { useRouter } from 'next/navigation'
-import { t } from '@/lib/i18n'
-import { useAppStore } from '@/store/app-store'
 
 interface UserMenuProps {
   email: string
@@ -15,11 +12,9 @@ interface UserMenuProps {
 
 export function UserMenu({ email, avatarUrl, displayName }: UserMenuProps) {
   const router = useRouter()
-  const { language } = useAppStore()
 
   const handleSignOut = async () => {
-    const supabase = createClient()
-    await supabase.auth.signOut()
+    await fetch('/api/auth/logout', { method: 'POST' })
     router.push('/')
     router.refresh()
   }

@@ -1,14 +1,14 @@
 export const en = {
   app: {
-    name: 'JHS One Ai',
+    name: 'JH One AI',
     tagline: 'Your Intelligent AI Assistant',
-    footer: '© 2026 JHS One Ai — by JH Soft Corporation',
+    footer: '© 2026 JH One AI — by JH Soft Corporation',
   },
   landing: {
-    hero_title: 'Meet JHS One Ai',
+    hero_title: 'Meet JH One AI',
     hero_subtitle: 'Powered by multiple AI engines for the best responses',
     get_started: 'Get Started Free',
-    features_title: 'Why JHS One Ai?',
+    features_title: 'Why JH One AI?',
     feature_1: 'Smart Responses',
     feature_1_desc: 'Uses 4 different AI providers for accurate answers',
     feature_2: 'Always Available',
@@ -20,7 +20,7 @@ export const en = {
   chat: {
     new_chat: 'New Chat',
     placeholder: 'Type a message...',
-    thinking: 'JHS One Ai is thinking...',
+    thinking: 'JH One AI is thinking...',
     send: 'Send',
     delete: 'Delete',
     rename: 'Rename',
@@ -33,6 +33,11 @@ export const en = {
     retry: 'Retry',
     error: 'Something went wrong. Please try again.',
     welcome_title: 'How can I help you today?',
+    attach_file: 'Attach PDF or image',
+    upload_remaining: 'PDFs {pdfs} left · Images {images} left',
+    upload_unlimited: 'PDFs and images: unlimited',
+    remove_file: 'Remove file',
+    upload_limit: 'Your daily upload limit has been reached.',
     welcome_suggestions: ['Write a poem', 'Explain quantum physics', 'Help me code', 'Tell me a joke'],
     today: 'Today',
     yesterday: 'Yesterday',
@@ -49,7 +54,7 @@ export const en = {
   auth: {
     sign_in: 'Sign in',
     sign_out: 'Sign out',
-    login_title: 'Welcome to JHS One Ai',
+    login_title: 'Welcome to JH One AI',
     login_subtitle: 'Sign in to start chatting with your AI assistant',
   },
   admin: {

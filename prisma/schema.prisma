@@ -1,0 +1,235 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id String @id @default(cuid()) @db.VarChar(30)
+  email String @unique @db.VarChar(320)
+  passwordHash String? @map("password_hash") @db.VarChar(255)
+  name String? @db.VarChar(160)
+  image String? @db.VarChar(2048)
+  status String @default("active") @db.VarChar(20)
+  mustChangePassword Boolean @default(false) @map("must_change_password")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  profile Profile?
+  sessions Session[]
+  accounts Account[]
+  passwordResetTokens PasswordResetToken[]
+  conversations Conversation[]
+  subscriptions Subscription[]
+  usageCounters UsageCounter[]
+  uploadedFiles UploadedFile[]
+  admin AdminUser?
+  @@map("users")
+}
+
+model Profile {
+  userId String @id @map("user_id") @db.VarChar(30)
+  displayName String? @map("display_name") @db.VarChar(160)
+  avatarUrl String? @map("avatar_url") @db.VarChar(2048)
+  preferredLang String @default("en") @map("preferred_lang") @db.VarChar(8)
+  theme String @default("light") @db.VarChar(12)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("profiles")
+}
+
+model Session {
+  id String @id @db.VarChar(64)
+  userId String @map("user_id") @db.VarChar(30)
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  userAgent String? @map("user_agent") @db.VarChar(512)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, expiresAt])
+  @@map("sessions")
+}
+
+model Account {
+  id String @id @default(cuid()) @db.VarChar(30)
+  userId String @map("user_id") @db.VarChar(30)
+  provider String @db.VarChar(40)
+  providerAccountId String @map("provider_account_id") @db.VarChar(255)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model PasswordResetToken {
+  id String @id @db.VarChar(64)
+  userId String @map("user_id") @db.VarChar(30)
+  expiresAt DateTime @map("expires_at")
+  usedAt DateTime? @map("used_at")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, expiresAt])
+  @@map("password_reset_tokens")
+}
+
+model Conversation {
+  id String @id @default(cuid()) @db.VarChar(30)
+  userId String @map("user_id") @db.VarChar(30)
+  title String @default("New Chat") @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages Message[]
+  uploadedFiles UploadedFile[]
+  @@index([userId, updatedAt])
+  @@map("conversations")
+}
+
+model Message {
+  id BigInt @id @default(autoincrement()) @db.BigInt
+  conversationId String @map("conversation_id") @db.VarChar(30)
+  role String @db.VarChar(16)
+  requestId String? @map("request_id") @db.VarChar(36)
+  content String @db.LongText
+  createdAt DateTime @default(now()) @map("created_at")
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  uploadedFiles UploadedFile[]
+  @@index([conversationId, createdAt])
+  @@unique([conversationId, requestId])
+  @@map("messages")
+}
+
+model AdminUser {
+  userId String @id @map("user_id") @db.VarChar(30)
+  role String @default("admin") @db.VarChar(20)
+  createdAt DateTime @default(now()) @map("created_at")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("admin_users")
+}
+
+model ProviderLog {
+  id BigInt @id @default(autoincrement()) @db.BigInt
+  provider String @db.VarChar(32)
+  keyIndex Int? @map("key_index")
+  userId String? @map("user_id") @db.VarChar(30)
+  success Boolean
+  responseTimeMs Int? @map("response_time_ms")
+  statusCode Int? @map("status_code")
+  errorCode String? @map("error_code") @db.VarChar(64)
+  createdAt DateTime @default(now()) @map("created_at")
+  @@index([provider, createdAt])
+  @@map("provider_logs")
+}
+
+model ProviderKeyStat {
+  id String @id @db.VarChar(80)
+  provider String @db.VarChar(32)
+  keyIndex Int @map("key_index")
+  status String @default("healthy") @db.VarChar(20)
+  successCount Int @default(0) @map("success_count")
+  failureCount Int @default(0) @map("failure_count")
+  cooldownUntil DateTime? @map("cooldown_until")
+  lastUsed DateTime? @map("last_used")
+  lastSuccess DateTime? @map("last_success")
+  lastFailure DateTime? @map("last_failure")
+  @@unique([provider, keyIndex])
+  @@map("provider_key_stats")
+}
+
+model AppSetting {
+  key String @id @db.VarChar(100)
+  value Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+  @@map("app_settings")
+}
+
+model Plan {
+  id String @id @db.VarChar(20)
+  name String @db.VarChar(80)
+  price Decimal @default(0) @db.Decimal(12, 2)
+  currency String @default("BDT") @db.VarChar(8)
+  messageLimit Int
+  pdfLimit Int
+  imageLimit Int
+  active Boolean @default(true)
+  displayOrder Int @default(0) @map("display_order")
+  description String? @db.Text
+  features Json?
+  subscriptions Subscription[]
+  @@map("plans")
+}
+
+model Subscription {
+  id String @id @default(cuid()) @db.VarChar(30)
+  userId String @map("user_id") @db.VarChar(30)
+  planId String @map("plan_id") @db.VarChar(20)
+  status String @default("pending") @db.VarChar(20)
+  priceAtRequest Decimal @map("price_at_request") @db.Decimal(12, 2)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan Plan @relation(fields: [planId], references: [id], onDelete: Restrict)
+  @@index([userId, createdAt])
+  @@map("subscription_requests")
+}
+
+model UsageCounter {
+  id String @id @default(cuid()) @db.VarChar(30)
+  userId String @map("user_id") @db.VarChar(30)
+  period String @db.VarChar(10)
+  date DateTime @db.Date
+  messages Int @default(0)
+  pdfs Int @default(0)
+  images Int @default(0)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, period, date])
+  @@map("usage_counters")
+}
+
+model UploadedFile {
+  id String @id @default(cuid()) @db.VarChar(30)
+  userId String @map("user_id") @db.VarChar(30)
+  conversationId String? @map("conversation_id") @db.VarChar(30)
+  messageId BigInt? @map("message_id") @db.BigInt
+  filename String @db.VarChar(255)
+  mimeType String @map("mime_type") @db.VarChar(127)
+  size BigInt @db.BigInt
+  type String @db.VarChar(10)
+  storageKey String @unique @map("storage_key") @db.VarChar(100)
+  createdAt DateTime @default(now()) @map("created_at")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  message Message? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  @@index([userId, createdAt])
+  @@index([conversationId, createdAt])
+  @@index([messageId])
+  @@map("uploaded_files")
+}
+
+model AuditLog {
+  id BigInt @id @default(autoincrement()) @db.BigInt
+  actorId String? @map("actor_id") @db.VarChar(30)
+  action String @db.VarChar(100)
+  target String? @db.VarChar(160)
+  metadata Json?
+  createdAt DateTime @default(now()) @map("created_at")
+  @@index([actorId, createdAt])
+  @@map("audit_logs")
+}
+
+model UserActivityLog {
+  id BigInt @id @default(autoincrement()) @db.BigInt
+  userId String? @map("user_id") @db.VarChar(30)
+  action String @db.VarChar(80)
+  metadata Json?
+  createdAt DateTime @default(now()) @map("created_at")
+  @@index([userId, createdAt])
+  @@map("user_activity_logs")
+}
+
+model Feedback {
+  id String @id @default(cuid()) @db.VarChar(30)
+  userId String? @map("user_id") @db.VarChar(30)
+  message String @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  @@map("feedback")
+}

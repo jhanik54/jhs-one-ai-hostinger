@@ -1,56 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabase } from '@/lib/supabase/server'
-
-export async function GET() {
-  const supabase = await createServerSupabase()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  const { data } = await supabase
-    .from('conversations')
-    .select('*')
-    .eq('user_id', user.id)
-    .order('updated_at', { ascending: false })
-
-  return NextResponse.json(data || [])
-}
-
-export async function POST(req: NextRequest) {
-  const supabase = await createServerSupabase()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  const { title } = await req.json()
-
-  const { data, error } = await supabase
-    .from('conversations')
-    .insert({ user_id: user.id, title: title || 'New Chat' })
-    .select()
-    .single()
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data)
-}
-
-export async function DELETE(req: NextRequest) {
-  const supabase = await createServerSupabase()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  const { searchParams } = new URL(req.url)
-  const id = searchParams.get('id')
-
-  if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 })
-
-  await supabase.from('conversations').delete().eq('id', id).eq('user_id', user.id)
-  return NextResponse.json({ success: true })
-}
+import { requireUser } from '@/lib/auth'
+import { db } from '@/lib/db'
+import { maintenanceResponse } from '@/lib/maintenance'
+export async function GET() { try { const user = await requireUser(); const rows = await db.conversation.findMany({ where: { userId: user.id }, orderBy: { updatedAt: 'desc' }, take: 100 }); return NextResponse.json(rows.map(c => ({ id:c.id,user_id:c.userId,title:c.title,created_at:c.createdAt,updated_at:c.updatedAt }))) } catch { return NextResponse.json({ error:'Unauthorized' }, {status:401}) } }
+export async function POST(req: NextRequest) { try { const user=await requireUser(); const unavailable=await maintenanceResponse(Boolean(user.admin));if(unavailable)return unavailable; const body=await req.json(); const title=typeof body.title==='string'?body.title.slice(0,255):'New Chat'; const c=await db.conversation.create({data:{userId:user.id,title}}); return NextResponse.json({id:c.id,user_id:c.userId,title:c.title,created_at:c.createdAt,updated_at:c.updatedAt}) } catch { return NextResponse.json({error:'Unable to create conversation.'},{status:401}) } }
+export async function DELETE(req: NextRequest) { try { const user=await requireUser();const unavailable=await maintenanceResponse(Boolean(user.admin));if(unavailable)return unavailable; const id=new URL(req.url).searchParams.get('id'); if(!id)return NextResponse.json({error:'ID required'},{status:400}); const result=await db.conversation.deleteMany({where:{id,userId:user.id}}); return result.count?NextResponse.json({success:true}):NextResponse.json({error:'Conversation not found.'},{status:404}) } catch { return NextResponse.json({error:'Unauthorized'},{status:401}) } }

@@ -5,47 +5,28 @@ export function getAllKeys(): Record<ProviderName, ApiKeyEntry[]> {
     gemini: [],
     groq: [],
     openrouter: [],
-    simbanova: [],
   }
 
-  for (let i = 0; i < 10; i++) {
-    const val = process.env[`GEMINI_KEY_${i}`]
-    if (val) {
-      keys.gemini.push({ key: val, provider: 'gemini', index: i, used: 0, lastUsed: null, isActive: true })
-    }
-  }
-
-  for (let i = 0; i < 10; i++) {
-    const val = process.env[`GROQ_KEY_${i}`]
-    if (val) {
-      keys.groq.push({ key: val, provider: 'groq', index: i, used: 0, lastUsed: null, isActive: true })
-    }
-  }
-
-  for (let i = 0; i < 5; i++) {
-    const val = process.env[`OPENROUTER_KEY_${i}`]
-    if (val) {
-      keys.openrouter.push({ key: val, provider: 'openrouter', index: i, used: 0, lastUsed: null, isActive: true })
-    }
-  }
-
-  for (let i = 0; i < 2; i++) {
-    const val = process.env[`SIMBANOVA_KEY_${i}`]
-    if (val) {
-      keys.simbanova.push({ key: val, provider: 'simbanova', index: i, used: 0, lastUsed: null, isActive: true })
-    }
+  for (const [name, val] of Object.entries(process.env)) {
+    const match = /^(GEMINI|GROQ|OPENROUTER)_KEY_(\d+)$/.exec(name)
+    if (!match || !val?.trim()) continue
+    const provider = match[1].toLowerCase() as 'gemini' | 'groq' | 'openrouter'
+    keys[provider].push({ key: val.trim(), provider, index: Number(match[2]), used: 0, lastUsed: null, isActive: true })
   }
 
   return keys
 }
 
 const keyUsage = new Map<string, { count: number; lastError: Date | null; errorCount: number }>()
+const keyLoad = new Map<string, number>()
 
-export function recordKeyUsage(keyId: string, success: boolean) {
-  const current = keyUsage.get(keyId) ?? { count: 0, lastError: null, errorCount: 0 }
+export function acquireKey(keyId:string){keyLoad.set(keyId,(keyLoad.get(keyId)||0)+1);let released=false;return()=>{if(released)return;released=true;keyLoad.set(keyId,Math.max(0,(keyLoad.get(keyId)||1)-1))}}
+
+export function recordKeyUsage(keyId: string, success: boolean, cooldownMs = 30000) {
+  const current = keyUsage.get(keyId) ?? { count: 0, lastError: null as Date | null, errorCount: 0 }
   current.count++
   if (!success) {
-    current.lastError = new Date()
+    current.lastError = new Date(Date.now() + cooldownMs)
     current.errorCount++
   }
   keyUsage.set(keyId, current)
@@ -60,12 +41,12 @@ export function selectBestKey(keys: ApiKeyEntry[]): ApiKeyEntry | null {
     const usage = keyUsage.get(`${k.provider}-${k.index}`)
     let score = 0
 
+    score -= (keyLoad.get(`${k.provider}-${k.index}`) ?? 0) * 100000
     score -= (usage?.count ?? 0) * 10
 
     if (usage?.lastError) {
-      const hoursSinceError = (Date.now() - usage.lastError.getTime()) / 3600000
-      if (hoursSinceError < 1) score -= 1000
-      else if (hoursSinceError < 6) score -= 100
+      const remaining = usage.lastError.getTime() - Date.now()
+      if (remaining > 0) score -= 100000 + remaining
     }
 
     return { key: k, score }
@@ -78,12 +59,13 @@ export function selectBestKey(keys: ApiKeyEntry[]): ApiKeyEntry | null {
 
 export function getKeyStats() {
   const allKeys = getAllKeys()
-  const stats: Record<string, { total: number; active: number }> = {}
+  const stats: Record<string, { total: number; active: number; keys: {index:number;status:string}[] }> = {}
 
   for (const [provider, keys] of Object.entries(allKeys)) {
     stats[provider] = {
       total: keys.length,
       active: keys.filter(k => k.isActive).length,
+      keys: keys.map(k => ({index:k.index,status:(keyUsage.get(`${provider}-${k.index}`)?.lastError?.getTime()||0)>Date.now()?'cooldown':'healthy'})),
     }
   }
 

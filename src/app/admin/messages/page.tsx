@@ -1,67 +1,43 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Card } from '@/components/ui/Card'
-import { Skeleton } from '@/components/ui/Skeleton'
-import { createClient } from '@/lib/supabase/client'
-import { formatDate } from '@/lib/utils/format'
+
+type AdminMessage = { id: string; role: string; excerpt: string; createdAt: string; conversationId: string; conversationTitle: string; userId: string; userEmail: string }
+type Results = { total: number; today: number; page: number; pageSize: number; items: AdminMessage[] }
 
 export default function AdminMessagesPage() {
-  const [stats, setStats] = useState<any>(null)
+  const [q, setQ] = useState('')
+  const [userId, setUserId] = useState('')
+  const [conversationId, setConversationId] = useState('')
+  const [role, setRole] = useState('')
+  const [from, setFrom] = useState('')
+  const [to, setTo] = useState('')
+  const [page, setPage] = useState(1)
+  const [data, setData] = useState<Results>({ total: 0, today: 0, page: 1, pageSize: 25, items: [] })
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
-  useEffect(() => {
-    const load = async () => {
-      const supabase = createClient()
-      const { count: total } = await supabase.from('messages').select('*', { count: 'exact', head: true })
-      const { count: today } = await supabase
-        .from('messages').select('*', { count: 'exact', head: true })
-        .gte('created_at', new Date().toISOString().split('T')[0])
+  const load = useCallback(async () => {
+    setLoading(true)
+    const params = new URLSearchParams({ page: String(page), pageSize: '25' })
+    for (const [key, value] of Object.entries({ q, userId, conversationId, role, from, to })) if (value) params.set(key, value)
+    try {
+      const response = await fetch(`/api/admin/messages?${params}`)
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Unable to load messages.')
+      setData(result); setError('')
+    } catch (err) { setError(err instanceof Error ? err.message : 'Unable to load messages.') }
+    finally { setLoading(false) }
+  }, [q, userId, conversationId, role, from, to, page])
+  useEffect(() => { const timer = setTimeout(() => { void load() }, 0); return () => clearTimeout(timer) }, [load])
+  const resetPage = (setter: (value: string) => void) => (value: string) => { setter(value); setPage(1) }
 
-      const { data: recent } = await supabase
-        .from('messages').select('*').order('created_at', { ascending: false }).limit(50)
-
-      setStats({ total, today, recent })
-      setLoading(false)
-    }
-    load()
-  }, [])
-
-  if (loading) return <div className="space-y-4"><Skeleton className="h-8 w-48" /><Skeleton className="h-64" /></div>
-
-  return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Messages</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card>
-          <p className="text-sm text-gray-500">Total Messages</p>
-          <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{(stats?.total || 0).toLocaleString()}</p>
-        </Card>
-        <Card>
-          <p className="text-sm text-gray-500">Today</p>
-          <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stats?.today || 0}</p>
-        </Card>
-        <Card>
-          <p className="text-sm text-gray-500">Avg / Day</p>
-          <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            {stats?.total ? Math.round(stats.total / 30) : 0}
-          </p>
-        </Card>
-      </div>
-      <Card>
-        <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">Recent Messages</h3>
-        <div className="space-y-2">
-          {(stats?.recent || []).slice(0, 10).map((m: any) => (
-            <div key={m.id} className="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900">
-              <span className={`px-2 py-0.5 rounded text-xs font-medium ${m.role === 'user' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
-                {m.role}
-              </span>
-              <p className="text-sm text-gray-600 dark:text-gray-400 flex-1 truncate">{m.content?.slice(0, 100)}</p>
-              <span className="text-xs text-gray-400 flex-shrink-0">{formatDate(m.created_at)}</span>
-            </div>
-          ))}
-        </div>
-      </Card>
-    </div>
-  )
+  return <div className="space-y-6">
+    <h2 className="text-2xl font-bold">Message monitoring</h2>
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2"><Card><p className="text-sm text-gray-500">Matching messages</p><p className="text-2xl font-bold">{data.total.toLocaleString()}</p></Card><Card><p className="text-sm text-gray-500">Messages today</p><p className="text-2xl font-bold">{data.today.toLocaleString()}</p></Card></div>
+    <Card><div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6"><input value={q} onChange={e=>resetPage(setQ)(e.target.value)} placeholder="Search message content" className="min-w-0 rounded-lg border bg-transparent p-2 lg:col-span-2"/><input value={userId} onChange={e=>resetPage(setUserId)(e.target.value)} placeholder="Filter user ID" className="min-w-0 rounded-lg border bg-transparent p-2"/><input value={conversationId} onChange={e=>resetPage(setConversationId)(e.target.value)} placeholder="Conversation ID" className="min-w-0 rounded-lg border bg-transparent p-2"/><select value={role} onChange={e=>resetPage(setRole)(e.target.value)} className="rounded-lg border bg-transparent p-2"><option value="">All roles</option><option value="user">User</option><option value="assistant">Assistant</option></select><label className="text-xs text-gray-500">From<input type="date" value={from} onChange={e=>resetPage(setFrom)(e.target.value)} className="mt-1 block w-full rounded-lg border bg-transparent p-2 text-sm"/></label><label className="text-xs text-gray-500">To<input type="date" value={to} onChange={e=>resetPage(setTo)(e.target.value)} className="mt-1 block w-full rounded-lg border bg-transparent p-2 text-sm"/></label></div><p className="mt-2 text-xs text-gray-500">Message contents are shown only in this admin view and truncated to 600 characters.</p></Card>
+    {error&&<p role="alert" className="text-sm text-red-600">{error}</p>}
+    <Card><div className="space-y-2">{data.items.map(message=><article key={message.id} className="rounded-lg border border-gray-100 p-3 dark:border-gray-800"><div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500"><span className={`rounded px-2 py-0.5 ${message.role==='user'?'bg-blue-100 text-blue-700':'bg-green-100 text-green-700'}`}>{message.role}</span><span>{message.userEmail}</span><span>{message.conversationTitle}</span><span className="break-all">{message.conversationId}</span><time className="sm:ml-auto">{new Date(message.createdAt).toLocaleString()}</time></div><p className="mt-2 whitespace-pre-wrap break-words text-sm">{message.excerpt}{message.excerpt.length>=600?'…':''}</p></article>)}{!loading&&!data.items.length&&<p className="p-8 text-center text-gray-500">No matching messages.</p>}</div><div className="flex items-center justify-between gap-3 pt-4 text-sm"><span>{loading?'Loading…':`${data.total.toLocaleString()} matching records`}</span><div className="flex gap-2"><button disabled={page<=1||loading} onClick={()=>setPage(value=>Math.max(1,value-1))} className="rounded border px-3 py-2 disabled:opacity-40">Previous</button><span className="self-center">Page {page}</span><button disabled={loading||page*data.pageSize>=data.total} onClick={()=>setPage(value=>value+1)} className="rounded border px-3 py-2 disabled:opacity-40">Next</button></div></div></Card>
+  </div>
 }

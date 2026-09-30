@@ -1,0 +1,4 @@
+import { NextResponse } from 'next/server'
+import { requireUser } from '@/lib/auth'
+import { db } from '@/lib/db'
+export async function GET(){try{const user=await requireUser();const planId=user.admin?'ULTRA':(await db.subscription.findFirst({where:{userId:user.id,status:'approved'},orderBy:{updatedAt:'desc'},select:{planId:true}}))?.planId||'NORMAL';const plan=await db.plan.findUnique({where:{id:planId}});if(!plan)return NextResponse.json({error:'Plan unavailable.'},{status:503});const date=new Date();date.setUTCHours(0,0,0,0);const usage=await db.usageCounter.findUnique({where:{userId_period_date:{userId:user.id,period:'day',date}}});return NextResponse.json({plan:plan.name,planId,limits:{messages:plan.messageLimit,pdfs:plan.pdfLimit,images:plan.imageLimit},used:{messages:usage?.messages||0,pdfs:usage?.pdfs||0,images:usage?.images||0},unlimited:user.admin})}catch{return NextResponse.json({error:'Sign in to continue.'},{status:401})}}

@@ -1,14 +1,6 @@
 import { en } from './en'
 import { bn } from './bn'
 
-type DeepValue<T, K extends string> = K extends keyof T
-  ? T[K]
-  : K extends `${infer K1}.${infer K2}`
-    ? K1 extends keyof T
-      ? DeepValue<T[K1], K2>
-      : string
-    : string
-
 const translations = { en, bn } as const
 type Lang = keyof typeof translations
 
@@ -27,26 +19,11 @@ export function getCurrentLanguage(): Lang {
 
 export function t(path: string): string {
   const keys = path.split('.')
-  let result: any = translations[currentLang]
-
-  for (const key of keys) {
-    if (result && typeof result === 'object' && key in result) {
-      result = result[key]
-    } else {
-      const fallback: any = translations['en']
-      let fb = fallback
-      for (const k of keys) {
-        if (fb && typeof fb === 'object' && k in fb) {
-          fb = fb[k]
-        } else {
-          return path
-        }
-      }
-      return typeof fb === 'string' ? fb : path
-    }
-  }
-
-  return typeof result === 'string' ? result : path
+  const get = (source: unknown): unknown => keys.reduce<unknown>((value,key) => value && typeof value === 'object' && key in value ? (value as Record<string,unknown>)[key] : undefined, source)
+  const value = get(translations[currentLang])
+  if (typeof value === 'string') return value
+  const fallback = get(translations.en)
+  return typeof fallback === 'string' ? fallback : path
 }
 
 export { en, bn }

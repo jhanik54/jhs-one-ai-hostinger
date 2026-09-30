@@ -1,38 +1,6 @@
-import { NextResponse } from 'next/server'
-import { createServerSupabase, isAdmin } from '@/lib/supabase/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { requireAdmin } from '@/lib/auth'
+import { db } from '@/lib/db'
 import { getKeyStats } from '@/lib/ai/keys'
-
-export async function GET() {
-  const supabase = await createServerSupabase()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user || !(await isAdmin(user.email))) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  const { data: logs } = await supabase
-    .from('provider_logs')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(1000)
-
-  const providerStats: Record<string, { total: number; success: number; failed: number; avgTime: number }> = {}
-
-  for (const log of logs || []) {
-    if (!providerStats[log.provider]) {
-      providerStats[log.provider] = { total: 0, success: 0, failed: 0, avgTime: 0 }
-    }
-    providerStats[log.provider].total++
-    if (log.success) providerStats[log.provider].success++
-    else providerStats[log.provider].failed++
-    providerStats[log.provider].avgTime += log.response_time_ms || 0
-  }
-
-  for (const p of Object.keys(providerStats)) {
-    providerStats[p].avgTime = Math.round(providerStats[p].avgTime / providerStats[p].total)
-  }
-
-  const keyStats = getKeyStats()
-
-  return NextResponse.json({ provider_stats: providerStats, key_stats: keyStats, logs: logs || [] })
-}
+export async function GET(){try{await requireAdmin();const [logs,persisted]=await Promise.all([db.providerLog.findMany({orderBy:{createdAt:'desc'},take:200,select:{id:true,provider:true,success:true,responseTimeMs:true,statusCode:true,errorCode:true,createdAt:true}}),db.providerKeyStat.findMany({select:{provider:true,keyIndex:true,status:true,cooldownUntil:true}})]);const keyStats=getKeyStats();for(const row of persisted){const provider=keyStats[row.provider];const key=provider?.keys.find(k=>k.index===row.keyIndex);if(key)key.status=row.status==='cooldown'&&row.cooldownUntil&&row.cooldownUntil<=new Date()?'healthy':row.status}for(const provider of Object.values(keyStats))provider.active=provider.keys.filter(key=>key.status==='healthy').length;return NextResponse.json({logs:logs.map(log=>({...log,id:log.id.toString()})),key_stats:keyStats})}catch{return NextResponse.json({error:'Unauthorized'},{status:403})}}
+export async function POST(req:NextRequest){try{const admin=await requireAdmin();const {key,value}=await req.json() as {key?:string;value?:unknown};if(!['provider_weights','active_providers'].includes(key||'')||!value)return NextResponse.json({error:'Invalid provider setting.'},{status:400});await db.appSetting.upsert({where:{key:key!},create:{key:key!,value:value as object},update:{value:value as object}});await db.auditLog.create({data:{actorId:admin.id,action:'provider_configuration_changed',target:key,metadata:{value}}});return NextResponse.json({success:true})}catch{return NextResponse.json({error:'Unable to update providers.'},{status:403})}}

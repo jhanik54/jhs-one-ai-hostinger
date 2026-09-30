@@ -1,37 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabase, isAdmin } from '@/lib/supabase/server'
-
-export async function GET() {
-  const supabase = await createServerSupabase()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user || !(await isAdmin(user.email))) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  const { data } = await supabase.from('app_settings').select('*')
-  const settings: Record<string, any> = {}
-  for (const row of data || []) {
-    settings[row.key] = row.value
-  }
-
-  return NextResponse.json(settings)
-}
-
-export async function POST(req: NextRequest) {
-  const supabase = await createServerSupabase()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user || !(await isAdmin(user.email))) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  const body = await req.json()
-  const { key, value } = body
-
-  if (!key) return NextResponse.json({ error: 'Key required' }, { status: 400 })
-
-  await supabase.from('app_settings').upsert({ key, value, updated_at: new Date().toISOString() })
-
-  return NextResponse.json({ success: true })
-}
+import { requireAdmin } from '@/lib/auth'
+import { db } from '@/lib/db'
+export async function GET(){try{await requireAdmin();const rows=await db.appSetting.findMany();return NextResponse.json(Object.fromEntries(rows.map(x=>[x.key,x.value])))}catch{return NextResponse.json({error:'Unauthorized'},{status:403})}}
+export async function POST(req:NextRequest){try{const admin=await requireAdmin();const {key,value}=await req.json() as {key?:string;value?:unknown};const allowed=['active_providers','provider_weights','whatsapp_number','maintenance_mode','subscriptions_enabled','registrations_enabled'];if(!key||!allowed.includes(key)||value===undefined)return NextResponse.json({error:'Invalid setting.'},{status:400});if(key==='whatsapp_number'&&(typeof value!=='string'||value.length>32))return NextResponse.json({error:'Enter a valid contact number.'},{status:400});if(key==='provider_weights'){if(!value||typeof value!=='object'||Array.isArray(value))return NextResponse.json({error:'Invalid provider weights.'},{status:400});const weights=value as Record<string,unknown>;if(!['gemini','groq','openrouter'].every(p=>typeof weights[p]==='number'&&Number.isFinite(weights[p])&&(weights[p] as number)>=0&&(weights[p] as number)<=100)||!['gemini','groq','openrouter'].some(p=>(weights[p] as number)>0))return NextResponse.json({error:'Each weight must be 0–100 and at least one provider must have non-zero weight.'},{status:400})}if(key==='active_providers'&&(!Array.isArray(value)||value.some(x=>!['gemini','groq','openrouter'].includes(String(x)))))return NextResponse.json({error:'Invalid provider list.'},{status:400});if(['maintenance_mode','subscriptions_enabled','registrations_enabled'].includes(key)&&typeof value!=='boolean')return NextResponse.json({error:'Setting must be true or false.'},{status:400});await db.appSetting.upsert({where:{key},create:{key,value:value as object},update:{value:value as object}});await db.auditLog.create({data:{actorId:admin.id,action:'setting_changed',target:key,metadata:{value}}});return NextResponse.json({success:true})}catch{return NextResponse.json({error:'Unable to update setting.'},{status:403})}}

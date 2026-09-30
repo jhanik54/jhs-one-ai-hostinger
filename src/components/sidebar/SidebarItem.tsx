@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { MessageSquare, MoreHorizontal, Trash2, Pencil } from 'lucide-react'
+import { MessageSquare, Trash2, Pencil } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 import { formatDate } from '@/lib/utils/format'
 import type { Conversation } from '@/types'
@@ -15,7 +15,6 @@ interface SidebarItemProps {
 }
 
 export function SidebarItem({ conversation, isActive, onClick, onRename, onDelete }: SidebarItemProps) {
-  const [showMenu, setShowMenu] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [editTitle, setEditTitle] = useState(conversation.title)
 

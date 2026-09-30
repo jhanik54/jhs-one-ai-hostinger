@@ -1,38 +1,24 @@
-import { createServerClient } from '@supabase/ssr'
+import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { NextResponse } from 'next/server'
-
-export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url)
-  const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/chat'
-
-  if (code) {
-    const cookieStore = await cookies()
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              )
-            } catch {}
-          },
-        },
-      }
-    )
-
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (!error) {
-      return NextResponse.redirect(`${origin}${next}`)
-    }
-  }
-
-  return NextResponse.redirect(`${origin}/?error=auth_failed`)
+import { db } from '@/lib/db'
+import { createSession } from '@/lib/auth'
+export async function GET(req: NextRequest) {
+  const {searchParams}=new URL(req.url);const code=searchParams.get('code');const state=searchParams.get('state');const jar=await cookies();const expected=jar.get('jh_oauth_state')?.value
+  const fail=()=>NextResponse.redirect(new URL('/login?error=auth_failed',req.url))
+  if(!code||!state||!expected||state!==expected)return fail()
+  const clientId=process.env.GOOGLE_CLIENT_ID;const clientSecret=process.env.GOOGLE_CLIENT_SECRET;const redirectUri=process.env.GOOGLE_REDIRECT_URI
+  if(!clientId||!clientSecret||!redirectUri)return fail()
+  try {
+    const tokenRes=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({code,client_id:clientId,client_secret:clientSecret,redirect_uri:redirectUri,grant_type:'authorization_code'}),cache:'no-store'})
+    if(!tokenRes.ok)return fail();const tokenData=await tokenRes.json() as {access_token?:string};if(!tokenData.access_token)return fail()
+    const profileRes=await fetch('https://www.googleapis.com/oauth2/v2/userinfo',{headers:{Authorization:`Bearer ${tokenData.access_token}`},cache:'no-store'});if(!profileRes.ok)return fail()
+    const profile=await profileRes.json() as {id?:string;email?:string;name?:string;picture?:string;verified_email?:boolean};if(!profile.id||!profile.email||!profile.verified_email)return fail()
+    const email=profile.email.toLowerCase();const account=await db.account.findUnique({where:{provider_providerAccountId:{provider:'google',providerAccountId:profile.id}},include:{user:true}})
+    let user=account?.user
+    if(!user){user=await db.user.upsert({where:{email},create:{id:crypto.randomUUID().replaceAll('-',''),email,name:profile.name,image:profile.picture,profile:{create:{displayName:profile.name,avatarUrl:profile.picture}}},update:{name:profile.name,image:profile.picture}});await db.account.create({data:{userId:user.id,provider:'google',providerAccountId:profile.id}})}
+    if(user.status!=='active')return fail()
+    if(process.env.INITIAL_SUPERADMIN_EMAIL?.toLowerCase()===email)await db.adminUser.upsert({where:{userId:user.id},create:{userId:user.id,role:'superadmin'},update:{role:'superadmin'}})
+    await createSession(user.id);await db.userActivityLog.create({data:{userId:user.id,action:'google_login'}})
+    const response=NextResponse.redirect(new URL('/chat',req.url));response.cookies.delete('jh_oauth_state');return response
+  } catch { return fail() }
 }

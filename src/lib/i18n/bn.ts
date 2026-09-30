@@ -1,14 +1,15 @@
-export const bn: Record<string, any> = {
+type Dictionary = { [key: string]: string | string[] | Dictionary }
+export const bn: Dictionary = {
   app: {
-    name: 'JHS One Ai',
+    name: 'JH One AI',
     tagline: 'আপনার বুদ্ধিমান এআই সহায়ক',
-    footer: '© ২০২৬ JHS One Ai — JH Soft Corporation',
+    footer: '© ২০২৬ JH One AI — JH Soft Corporation',
   },
   landing: {
-    hero_title: 'JHS One Ai এর সাথে পরিচিত হোন',
+    hero_title: 'JH One AI এর সাথে পরিচিত হোন',
     hero_subtitle: 'সেরা উত্তরের জন্য একাধিক এআই ইঞ্জিন দ্বারা চালিত',
     get_started: 'ফ্রিতে শুরু করুন',
-    features_title: 'কেন JHS One Ai?',
+    features_title: 'কেন JH One AI?',
     feature_1: 'স্মার্ট উত্তর',
     feature_1_desc: 'সঠিক উত্তরের জন্য ৪টি ভিন্ন এআই প্রদানকারী ব্যবহার করে',
     feature_2: 'সর্বদা উপলব্ধ',
@@ -20,7 +21,7 @@ export const bn: Record<string, any> = {
   chat: {
     new_chat: 'নতুন চ্যাট',
     placeholder: 'একটি বার্তা লিখুন...',
-    thinking: 'JHS One Ai চিন্তা করছে...',
+    thinking: 'JH One AI চিন্তা করছে...',
     send: 'পাঠান',
     delete: 'মুছুন',
     rename: 'নাম পরিবর্তন',
@@ -33,6 +34,11 @@ export const bn: Record<string, any> = {
     retry: 'পুনরায় চেষ্টা',
     error: 'কিছু ভুল হয়েছে। আবার চেষ্টা করুন।',
     welcome_title: 'আজ আমি কীভাবে আপনাকে সাহায্য করতে পারি?',
+    attach_file: 'PDF বা ছবি যুক্ত করুন',
+    upload_remaining: 'PDF বাকি {pdfs}টি · ছবি বাকি {images}টি',
+    upload_unlimited: 'PDF ও ছবির সীমা নেই',
+    remove_file: 'ফাইল সরান',
+    upload_limit: 'আজকের ফাইল আপলোড সীমা শেষ।',
     welcome_suggestions: ['একটি কবিতা লিখুন', 'কোয়ান্টাম ফিজিক্স ব্যাখ্যা করুন', 'কোডিংয়ে সাহায্য করুন', 'একটি মজার গল্প বলুন'],
     today: 'আজ',
     yesterday: 'গতকাল',
@@ -49,7 +55,7 @@ export const bn: Record<string, any> = {
   auth: {
     sign_in: 'সাইন ইন',
     sign_out: 'সাইন আউট',
-    login_title: 'JHS One Ai তে স্বাগতম',
+    login_title: 'JH One AI তে স্বাগতম',
     login_subtitle: 'আপনার এআই সহায়কের সাথে চ্যাট শুরু করতে সাইন ইন করুন',
   },
   admin: {

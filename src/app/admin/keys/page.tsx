@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { Key, CheckCircle, XCircle } from 'lucide-react'
 
 export default function AdminKeysPage() {
-  const [data, setData] = useState<any>(null)
+  const [data, setData] = useState<{key_stats?:Record<string,{total:number;active:number;keys:{index:number;status:string}[]}>} | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -19,17 +19,16 @@ export default function AdminKeysPage() {
 
   if (loading) return <div className="space-y-4"><Skeleton className="h-8 w-48" /><Skeleton className="h-64" /></div>
 
-  const providers = ['gemini', 'groq', 'openrouter', 'simbanova']
-  const keyCounts: Record<string, number> = { gemini: 10, groq: 10, openrouter: 5, simbanova: 2 }
+  const providers = ['gemini', 'groq', 'openrouter']
 
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">API Keys</h2>
-      <p className="text-sm text-gray-500">Total: 27 keys configured across 4 providers</p>
+      <p className="text-sm text-gray-500">Configured key counts reflect server environment variables.</p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {providers.map(provider => {
-          const stats = data?.key_stats?.[provider] || { total: 0, active: 0 }
+          const stats = data?.key_stats?.[provider] || { total: 0, active: 0, keys: [] }
           return (
             <Card key={provider}>
               <div className="flex items-center justify-between mb-3">
@@ -42,10 +41,10 @@ export default function AdminKeysPage() {
                 </Badge>
               </div>
               <div className="space-y-1.5">
-                {Array.from({ length: keyCounts[provider] }).map((_, i) => {
-                  const isActive = i < stats.active
+                {stats.keys.map(({index,status}) => {
+                  const isActive = status === 'healthy'
                   return (
-                    <div key={i} className="flex items-center justify-between text-sm py-1">
+                    <div key={index} className="flex items-center justify-between text-sm py-1">
                       <div className="flex items-center gap-2">
                         {isActive ? (
                           <CheckCircle className="h-3.5 w-3.5 text-green-500" />
@@ -53,10 +52,10 @@ export default function AdminKeysPage() {
                           <XCircle className="h-3.5 w-3.5 text-red-400" />
                         )}
                         <span className="text-gray-600 dark:text-gray-400 font-mono text-xs">
-                          {provider.toUpperCase()} KEY #{i + 1}
+                          {provider.toUpperCase()} KEY #{index}
                         </span>
                       </div>
-                      <span className="text-xs text-gray-400">{isActive ? 'Configured' : 'Missing'}</span>
+                      <span className="text-xs text-gray-400 capitalize">{status}</span>
                     </div>
                   )
                 })}

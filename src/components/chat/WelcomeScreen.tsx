@@ -28,7 +28,7 @@ export function WelcomeScreen() {
           How can I help you today?
         </h1>
         <p className="text-gray-500 dark:text-gray-400 mb-8">
-          Powered by JHS One Ai — multiple AI engines, one smart assistant
+          Powered by JH One AI — multiple AI engines, one smart assistant
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-lg mx-auto">
           {suggestions.map((s, i) => (

@@ -1,145 +1,22 @@
-# JHS One Ai — Deployment Guide
+# Hostinger deployment
 
-## 📋 GitHub Push er Jonno Ja Lagbe
+1. Create a MySQL database and user in Hostinger hPanel. Grant the user access to that database.
+2. Configure the Next.js Node.js application using Node.js 20.16 or newer in the runtime supported by your Hostinger Business plan. This project requires server routes, secure cookies, and streaming responses.
+3. Configure the variables in `.env.example` in the Hostinger application environment. Use a long random `AUTH_SECRET`; keep all values server-side.
+4. Configure the Google OAuth web client with an authorized redirect URI of `https://YOUR_DOMAIN/auth/callback`; set the same URI in `GOOGLE_REDIRECT_URI`.
+5. Back up the empty/new database, then run `npx prisma migrate deploy` during deployment.
+6. Set `INITIAL_SUPERADMIN_EMAIL` before the owner signs in through Google. Only a verified Google email matching this value receives the initial superadmin role.
+7. Configure Gemini/Groq/OpenRouter keys using indexed environment names. Any index can be used, for example `GEMINI_KEY_0`, `GEMINI_KEY_12`.
+8. Set the WhatsApp business number in the admin settings after initial deployment.
 
-### 1. GitHub Account
-- Ekta GitHub account (free: github.com)
-- **Na thakle:** github.com/signup → email diye account khulen
+## Private user uploads
 
-### 2. New Repository (Repo)
-GitHub e giye:
-1.右上角 `+` → **New repository**
-2. Repository name: `jhs-one-ai`
-3. Description: `JHS One Ai - Multi-AI Chat Platform by JH Soft Corporation`
-4. **Public** rakhen (free hosting er jonno)
-5. **Don't initialize** with README (amader already achhe)
-6. ✅ Create repository
+Set `PRIVATE_UPLOAD_DIR` to an application-writable persistent directory outside the site's document root (for example, a private directory beside the deployed application, not inside `public_html`). The application creates it with mode `0700` and writes files with mode `0600`; verify that the Hostinger Node process owns this directory. Hostinger deployments that do not preserve files across releases must point this setting to persistent account storage. Allow up to 11 MB for a single multipart upload at the reverse proxy/runtime layer. Application limits are 10 MB per PDF, 8 MB per image, and 11 MB per request.
 
-### 3. Git Install (PC te)
-```bash
-# Check koren git achhe kina:
-git --version
+Back up this private upload directory together with the MySQL database. Restore the private files before restoring or serving their `uploaded_files` metadata. Do not expose this directory through the web server or configure it as a static asset directory.
 
-# Na thakle install:
-# Windows: https://git-scm.com/downloads
-# Mac: brew install git
-# Linux: sudo apt install git
-```
+After deploying, run `npx prisma migrate deploy` to add the `uploaded_files` metadata table. `npm run test:uploads` runs the isolated MIME, extension, signature, size, and filename validation tests without external credentials.
 
-### 4. Git Configure (Ekbar)
-```bash
-git config --global user.name "Md Junayed Hossain Anik"
-git config --global user.email "your-email@example.com"
-```
+Take a Hostinger MySQL backup before each migration. To recover, restore that backup through hPanel to a separate database, validate the restored application there, then switch `DATABASE_URL`. This application does not attempt production migrations during build and does not include fake backup/export behavior.
 
----
-
-## 🚀 Push Command (Copy-Paste Ready)
-
-```bash
-# Step 1: Project folder e jaan
-cd /root/jhs-one-ai
-
-# Step 2: Git initialize
-git init
-
-# Step 3: Sob file add koren
-git add .
-
-# Step 4: First commit
-git commit -m "init: complete JHS One Ai - by JH Soft Corporation"
-
-# Step 5: GitHub repo connect (YOUR_USERNAME change koren)
-git remote add origin https://github.com/YOUR_USERNAME/jhs-one-ai.git
-
-# Step 6: Push koren
-git push -u origin main
-```
-
-**Username + Token na chaile:**
-```bash
-# SSH use korte chaile (easier):
-git remote add origin git@github.com:YOUR_USERNAME/jhs-one-ai.git
-```
-
----
-
-## 🔑 API Keys Collection (27 Keys)
-
-| Provider | Keys | Where to Get |
-|----------|------|-------------|
-| **Gemini** | 10 keys | https://aistudio.google.com/apikey |
-| **Groq** | 10 keys | https://console.groq.com/keys |
-| **OpenRouter** | 5 keys | https://openrouter.ai/keys |
-| **Simbanova** | 2 keys | Simbanova website |
-
-**.env.local file e fill koren:**
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJxxxx
-GEMINI_KEY_0=AIza...
-GEMINI_KEY_1=AIza...
-... (sab 27 ta key)
-```
-
----
-
-## 🗄️ Supabase Setup
-
-1. Go to https://supabase.com → Sign up free
-2. **New Project** → Name: `jhs-one-ai`
-3. Database password set koren → Create
-4. Wait 1-2 minutes for project ready
-5. **SQL Editor** → New Query → Paste contents of `supabase/migrations/00001_schema.sql` → Run
-6. **Authentication** → Providers → **Google** → Enable
-   - Client ID + Secret lagbe (Google Cloud Console theke)
-7. **Project Settings** → API → Copy URL + anon key
-
-### Google OAuth Setup
-1. Go to https://console.cloud.google.com
-2. Create project → APIs & Services → Credentials
-3. **OAuth consent screen** → External → Fill form
-4. **Create OAuth client ID** → Web application
-5. Redirect URI: `https://YOUR-PROJECT.supabase.co/auth/v1/callback`
-6. Copy Client ID + Secret → Supabase Auth → Google → Paste
-
----
-
-## 🚀 Vercel Deploy
-
-1. Go to https://vercel.com → Sign up with GitHub
-2. **Add New Project** → Import `jhs-one-ai` repo
-3. **Environment Variables** → Add ALL from `.env.local`
-4. **Deploy** → Vercel auto build + deploy
-5. After deploy, copy your URL (e.g., `https://jhs-one-ai.vercel.app`)
-6. Go to Supabase → Auth → Google → Add redirect: `https://jhs-one-ai.vercel.app/auth/callback`
-
----
-
-## 👑 Admin Access Setup
-
-```sql
--- Supabase SQL Editor e run koren:
-UPDATE app_settings 
-SET value = '["your-email@gmail.com"]'::jsonb
-WHERE key = 'admin_emails';
-```
-
-Then visit: `https://your-domain.vercel.app/admin`
-
----
-
-## 🧪 Local Test
-
-```bash
-npm run dev
-# Browser e: http://localhost:3000
-```
-
----
-
-## ❓ Help
-
-Email: jhunayed@jhsoftcorporation.com
-Company: JH Soft Corporation
-Owner: Md Junayed Hossain Anik
+Do not commit `.env.local`. The `.gitignore` excludes `.env*` files.

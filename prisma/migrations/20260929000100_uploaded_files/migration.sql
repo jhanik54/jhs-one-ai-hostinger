@@ -1,0 +1,20 @@
+CREATE TABLE `uploaded_files` (
+  `id` VARCHAR(30) NOT NULL,
+  `user_id` VARCHAR(30) NOT NULL,
+  `conversation_id` VARCHAR(30) NULL,
+  `message_id` BIGINT NULL,
+  `filename` VARCHAR(255) NOT NULL,
+  `mime_type` VARCHAR(127) NOT NULL,
+  `size` BIGINT NOT NULL,
+  `type` VARCHAR(10) NOT NULL,
+  `storage_key` VARCHAR(100) NOT NULL,
+  `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  UNIQUE INDEX `uploaded_files_storage_key_key` (`storage_key`),
+  INDEX `uploaded_files_user_id_created_at_idx` (`user_id`, `created_at`),
+  INDEX `uploaded_files_conversation_id_created_at_idx` (`conversation_id`, `created_at`),
+  INDEX `uploaded_files_message_id_idx` (`message_id`),
+  PRIMARY KEY (`id`),
+  CONSTRAINT `uploaded_files_user_id_fkey` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `uploaded_files_conversation_id_fkey` FOREIGN KEY (`conversation_id`) REFERENCES `conversations` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `uploaded_files_message_id_fkey` FOREIGN KEY (`message_id`) REFERENCES `messages` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

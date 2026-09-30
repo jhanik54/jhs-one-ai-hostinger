@@ -1,58 +1,15 @@
 'use client'
-
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Card } from '@/components/ui/Card'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { createClient } from '@/lib/supabase/client'
 import { formatDate } from '@/lib/utils/format'
-import type { Profile } from '@/types'
+type UserRow={id:string;email:string;display_name:string|null;created_at:string;status:string;plan:string;usage:{messages:number;pdfs:number;images:number};last_activity:{createdAt:string;action:string}|null}
 
-export default function AdminUsersPage() {
-  const [profiles, setProfiles] = useState<(Profile & { email?: string })[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const load = async () => {
-      const supabase = createClient()
-      const { data } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      if (data) setProfiles(data as any)
-      setLoading(false)
-    }
-    load()
-  }, [])
-
-  if (loading) return <div className="space-y-4"><Skeleton className="h-8 w-48" /><Skeleton className="h-64" /></div>
-
-  return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Users</h2>
-      <Card>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-200 dark:border-gray-800">
-                <th className="text-left py-3 px-4 text-gray-500 font-medium">Name</th>
-                <th className="text-left py-3 px-4 text-gray-500 font-medium">Joined</th>
-              </tr>
-            </thead>
-            <tbody>
-              {profiles.map(p => (
-                <tr key={p.id} className="border-b border-gray-100 dark:border-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-900/50">
-                  <td className="py-3 px-4 text-gray-900 dark:text-gray-100">{p.display_name || 'Unknown'}</td>
-                  <td className="py-3 px-4 text-gray-500">{formatDate(p.created_at)}</td>
-                </tr>
-              ))}
-              {profiles.length === 0 && (
-                <tr><td colSpan={2} className="py-8 text-center text-gray-400">No users yet</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-    </div>
-  )
+export default function AdminUsersPage(){
+  const [users,setUsers]=useState<UserRow[]>([]);const [loading,setLoading]=useState(true);const [query,setQuery]=useState('');const [notice,setNotice]=useState('')
+  const load=useCallback(async()=>{const r=await fetch(`/api/admin/users?q=${encodeURIComponent(query)}`);const data=await r.json();if(r.ok)setUsers(data);setLoading(false)},[query])
+  useEffect(()=>{const timer=setTimeout(()=>void load(),0);return()=>clearTimeout(timer)},[load])
+  async function update(id:string,body:Record<string,unknown>){const r=await fetch(`/api/admin/users/${encodeURIComponent(id)}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const data=await r.json();if(!r.ok){setNotice(data.error||'Unable to update user.');return}if(data.resetUrl)setNotice(`One-time password reset link: ${data.resetUrl}`);else setNotice('User updated.');await load()}
+  if(loading)return <div className="space-y-4"><Skeleton className="h-8 w-48"/><Skeleton className="h-64"/></div>
+  return <div className="space-y-6"><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-2xl font-bold">Users</h2><input value={query} onChange={e=>{setLoading(true);setQuery(e.target.value)}} placeholder="Search email or name" className="rounded-lg border bg-transparent px-3 py-2"/></div>{notice&&<p role="status" className="break-all text-sm text-blue-600">{notice}</p>}<Card><div className="overflow-x-auto"><table className="w-full min-w-[1060px] text-sm"><thead><tr className="border-b"><th className="p-3 text-left">User</th><th className="p-3 text-left">Joined</th><th className="p-3 text-left">Plan</th><th className="p-3 text-left">Today usage</th><th className="p-3 text-left">Last activity</th><th className="p-3 text-left">Status</th><th className="p-3 text-left">Actions</th></tr></thead><tbody>{users.map(user=><tr key={user.id} className="border-b"><td className="p-3">{user.display_name||'Unknown'}<div className="text-xs text-gray-500">{user.email}</div></td><td className="p-3 text-gray-500">{formatDate(user.created_at)}</td><td className="p-3"><select aria-label={`Plan for ${user.email}`} value={user.plan==='ULTRA'?'ULTRA':user.plan} disabled={user.plan==='ULTRA'} onChange={e=>void update(user.id,{planId:e.target.value})} className="rounded border bg-transparent p-1"><option value="NORMAL">NORMAL</option><option value="STANDARD">STANDARD</option><option value="PREMIUM">PREMIUM</option>{user.plan==='ULTRA'&&<option value="ULTRA">ULTRA</option>}</select></td><td className="p-3 whitespace-nowrap">{user.usage.messages} msg · {user.usage.pdfs} PDF · {user.usage.images} images</td><td className="p-3 text-gray-500">{user.last_activity?`${user.last_activity.action} · ${formatDate(user.last_activity.createdAt)}`:'—'}</td><td className="p-3 capitalize">{user.status}</td><td className="p-3"><div className="flex flex-wrap gap-2"><button className="rounded border px-2 py-1" onClick={()=>void update(user.id,{status:user.status==='active'?'disabled':'active'})}>{user.status==='active'?'Disable':'Enable'}</button><button className="rounded border px-2 py-1" onClick={()=>void update(user.id,{revokeSessions:true})}>Revoke sessions</button><button className="rounded border px-2 py-1" onClick={()=>void update(user.id,{resetPassword:true})}>Reset password</button></div></td></tr>)}{!users.length&&<tr><td colSpan={7} className="p-8 text-center text-gray-400">No users found</td></tr>}</tbody></table></div></Card></div>
 }

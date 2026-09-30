@@ -1,27 +1,28 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { Plus, PanelLeftClose, PanelLeft } from 'lucide-react'
 import { SearchBar } from './SearchBar'
 import { SidebarItem } from './SidebarItem'
 import { UserMenu } from '@/components/shared/UserMenu'
 import { useChat } from '@/lib/hooks/useChat'
 import { useAppStore } from '@/store/app-store'
-import { createClient } from '@/lib/supabase/client'
-import { cn } from '@/lib/utils/cn'
 
 export function Sidebar() {
   const [search, setSearch] = useState('')
   const [user, setUser] = useState<{ email: string; avatar_url?: string | null; display_name?: string | null } | null>(null)
+  const [usage,setUsage]=useState<{plan:string;limits:{messages:number;pdfs:number;images:number};used:{messages:number;pdfs:number;images:number};unlimited:boolean}|null>(null)
   const { conversations, currentConversationId, loadConversations, loadMessages, createConversation, removeConversation, updateConversation } = useChat()
   const { sidebarOpen, setSidebarOpen } = useAppStore()
 
   useEffect(() => {
     const init = async () => {
-      const supabase = createClient()
-      const { data: { user: u } } = await supabase.auth.getUser()
-      if (u) {
-        setUser({ email: u.email!, avatar_url: u.user_metadata?.avatar_url, display_name: u.user_metadata?.full_name })
+      const response = await fetch('/api/auth/me')
+      if (response.ok) {
+        const u = await response.json()
+        setUser({ email: u.email, avatar_url: u.image, display_name: u.name })
+        fetch('/api/usage').then(r=>r.ok?r.json():null).then(data=>{if(data)setUsage(data)}).catch(()=>undefined)
         loadConversations()
       }
     }
@@ -37,14 +38,12 @@ export function Sidebar() {
   }
 
   const handleDelete = async (id: string) => {
-    const supabase = createClient()
-    await supabase.from('conversations').delete().eq('id', id)
+    await fetch(`/api/conversations?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
     removeConversation(id)
   }
 
   const handleRename = async (id: string, title: string) => {
-    const supabase = createClient()
-    await supabase.from('conversations').update({ title }).eq('id', id)
+    await fetch(`/api/conversations/${encodeURIComponent(id)}`, { method: 'PATCH', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ title }) })
     updateConversation(id, { title })
   }
 
@@ -101,6 +100,7 @@ export function Sidebar() {
       </div>
 
       <div className="border-t border-gray-200 dark:border-gray-800">
+        {usage && <div className="px-4 pt-3 text-xs text-gray-500"><div className="mb-1 flex justify-between"><span>{usage.plan} plan</span><Link href="/plans" className="text-blue-600">Upgrade</Link></div>{usage.unlimited?'Unlimited usage':(['messages','pdfs','images'] as const).map((key)=>`${Math.max(0,usage.limits[key]-usage.used[key])}/${usage.limits[key]} ${key} left`).join(' · ')}</div>}
         {user && <UserMenu email={user.email} avatarUrl={user.avatar_url} displayName={user.display_name} />}
       </div>
     </div>

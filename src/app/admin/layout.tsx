@@ -3,15 +3,16 @@
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/client'
-import { LayoutDashboard, Users, MessageSquare, Key, Settings, AlertTriangle, BarChart3, LogOut } from 'lucide-react'
+import { LayoutDashboard, Users, MessageSquare, Key, Settings, AlertTriangle, BarChart3, LogOut, CreditCard, ScrollText } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 
 const navItems = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/users', label: 'Users', icon: Users },
   { href: '/admin/messages', label: 'Messages', icon: MessageSquare },
+  { href: '/admin/logs', label: 'Audit & Activity', icon: ScrollText },
   { href: '/admin/providers', label: 'Providers', icon: BarChart3 },
+  { href: '/admin/subscriptions', label: 'Subscriptions', icon: CreditCard },
   { href: '/admin/keys', label: 'API Keys', icon: Key },
   { href: '/admin/error-logs', label: 'Error Logs', icon: AlertTriangle },
   { href: '/admin/settings', label: 'Settings', icon: Settings },
@@ -24,21 +25,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     const check = async () => {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
+      const response = await fetch('/api/auth/me')
+      if (!response.ok) {
         router.push('/login')
         return
       }
-
-      const { data } = await supabase
-        .from('app_settings')
-        .select('value')
-        .eq('key', 'admin_emails')
-        .single()
-
-      const emails: string[] = data?.value as unknown as string[] || []
-      if (!emails.includes(user.email!)) {
+      const user = await response.json()
+      if (!user.admin) {
         router.push('/chat')
         return
       }

@@ -13,7 +13,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     fetch('/api/admin/stats')
-      .then(r => r.json())
+      .then(async r => r.ok ? r.json() : null)
       .then(data => { setStats(data); setLoading(false) })
       .catch(() => setLoading(false))
   }, [])
@@ -42,7 +42,7 @@ export default function AdminDashboard() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Admin Dashboard</h2>
-        <Badge variant="success">System Online</Badge>
+        <Badge variant={stats?.database === 'connected' ? 'success' : 'danger'}>{stats?.database === 'connected' ? 'MySQL connected' : 'System status unavailable'}</Badge>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -59,6 +59,25 @@ export default function AdminDashboard() {
             </div>
           </Card>
         ))}
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card>
+          <h3 className="mb-3 font-semibold text-gray-900 dark:text-gray-100">Plan distribution</h3>
+          <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+            {(['NORMAL', 'STANDARD', 'PREMIUM', 'ULTRA'] as const).map(plan => <div key={plan} className="rounded-lg bg-gray-50 p-3 dark:bg-gray-900"><p className="text-gray-500">{plan}</p><p className="text-xl font-semibold">{stats?.plan_distribution?.[plan] ?? 0}</p></div>)}
+          </div>
+          <p className="mt-3 text-sm text-gray-500">Pending subscription requests: {stats?.pending_subscriptions ?? 0}</p>
+        </Card>
+        <Card>
+          <h3 className="mb-3 font-semibold text-gray-900 dark:text-gray-100">Provider activity today</h3>
+          <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+            <div><p className="text-gray-500">Requests</p><p className="text-xl font-semibold">{stats?.provider_metrics?.requests_today ?? 0}</p></div>
+            <div><p className="text-gray-500">Successful</p><p className="text-xl font-semibold">{stats?.provider_metrics?.successes_today ?? 0}</p></div>
+            <div><p className="text-gray-500">Failed</p><p className="text-xl font-semibold">{stats?.provider_metrics?.failures_today ?? 0}</p></div>
+            <div><p className="text-gray-500">Success rate</p><p className="text-xl font-semibold">{stats?.provider_metrics?.requests_today ? `${Math.round((stats.provider_metrics.successes_today / stats.provider_metrics.requests_today) * 100)}%` : '—'}</p></div>
+          </div>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -79,16 +98,12 @@ export default function AdminDashboard() {
             </div>
             <div className="flex justify-between">
               <span className="text-gray-500">Product</span>
-              <span className="text-gray-900 dark:text-gray-100">JHS One Ai</span>
+              <span className="text-gray-900 dark:text-gray-100">JH One AI</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-gray-500">AI Providers</span>
-              <span className="text-gray-900 dark:text-gray-100">4 Active</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-500">Total API Keys</span>
-              <span className="text-gray-900 dark:text-gray-100">27 Configured</span>
-            </div>
+            <div className="flex justify-between"><span className="text-gray-500">Active AI Providers</span><span className="text-gray-900 dark:text-gray-100">{stats?.provider_metrics?.active_providers ?? 0}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">Configured API Keys</span><span className="text-gray-900 dark:text-gray-100">{stats?.provider_metrics?.configured_keys ?? 0}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">Messages this month</span><span className="text-gray-900 dark:text-gray-100">{stats?.messages_month ?? 0}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">PDFs / images today</span><span className="text-gray-900 dark:text-gray-100">{stats?.uploads_today?.pdfs ?? 0} / {stats?.uploads_today?.images ?? 0}</span></div>
           </div>
         </Card>
       </div>

@@ -14,7 +14,7 @@ export function ThinkingIndicator({ className }: ThinkingIndicatorProps) {
         <span className="h-2 w-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '150ms' }} />
         <span className="h-2 w-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '300ms' }} />
       </div>
-      <span className="text-sm text-gray-500 dark:text-gray-400">JHS One Ai is thinking...</span>
+      <span className="text-sm text-gray-500 dark:text-gray-400">JH One AI is thinking...</span>
     </div>
   )
 }

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "JHS One Ai — by JH Soft Corporation",
+  title: "JH One AI — by JH Soft Corporation",
   description: "Your intelligent AI assistant powered by multiple AI engines.",
 };
 

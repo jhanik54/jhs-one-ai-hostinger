@@ -21,6 +21,7 @@ export interface Message {
   role: 'user' | 'assistant'
   content: string
   created_at: string
+  attachments?: { id: string; filename: string; mime_type: string; type: 'pdf' | 'image' }[]
 }
 
 export interface AdminUser {
@@ -53,12 +54,13 @@ export interface ProviderLog {
   created_at: string
 }
 
-export type ProviderName = 'gemini' | 'groq' | 'openrouter' | 'simbanova'
+export type ProviderName = 'gemini' | 'groq' | 'openrouter'
 
 export interface ChatRequest {
   message: string
   conversation_id: string | null
-  history: { role: 'user' | 'assistant'; content: string }[]
+  request_id?: string
+  file_ids?: string[]
 }
 
 export interface StreamChunk {
@@ -72,4 +74,10 @@ export interface DashboardStats {
   total_conversations: number
   active_today: number
   messages_today: number
+  messages_month?: number
+  pending_subscriptions?: number
+  uploads_today?: { pdfs: number; images: number }
+  plan_distribution?: Record<string, number>
+  provider_metrics?: { active_providers: number; configured_keys: number; requests_today: number; successes_today: number; failures_today: number }
+  database?: 'connected'
 }

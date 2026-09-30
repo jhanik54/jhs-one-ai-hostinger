@@ -1,0 +1,4 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { requireUser } from '@/lib/auth'
+import { db } from '@/lib/db'
+export async function GET(_req: NextRequest, ctx: { params: Promise<{id:string}> }) { try { const user=await requireUser(); const {id}=await ctx.params; const owner=await db.conversation.findFirst({where:{id,userId:user.id},select:{id:true}}); if(!owner)return NextResponse.json({error:'Conversation not found.'},{status:404}); const rows=await db.message.findMany({where:{conversationId:id},orderBy:{createdAt:'asc'},take:100,include:{uploadedFiles:{select:{id:true,filename:true,mimeType:true,type:true}}}}); return NextResponse.json(rows.map(m=>({id:Number(m.id),conversation_id:m.conversationId,role:m.role,content:m.content,created_at:m.createdAt,attachments:m.uploadedFiles.map(f=>({id:f.id,filename:f.filename,mime_type:f.mimeType,type:f.type as 'pdf'|'image'}))}))) } catch { return NextResponse.json({error:'Unauthorized'},{status:401}) } }

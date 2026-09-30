@@ -2,6 +2,7 @@
 
 import { cn } from '@/lib/utils/cn'
 import { User, Bot } from 'lucide-react'
+import { FileText, Image as ImageIcon } from 'lucide-react'
 import { MarkdownRenderer } from './MarkdownRenderer'
 import type { Message } from '@/types'
 
@@ -33,7 +34,10 @@ export function MessageBubble({ message, isStreaming, streamingContent }: Messag
           )}
         >
           {isUser ? (
-            <p className="text-sm whitespace-pre-wrap">{displayContent}</p>
+            <>
+              <p className="text-sm whitespace-pre-wrap break-words">{displayContent}</p>
+              {message.attachments?.length ? <div className="mt-2 grid gap-1 border-t border-white/20 pt-2">{message.attachments.map(file => <a key={file.id} href={`/api/uploads/${encodeURIComponent(file.id)}`} target={file.type === 'image' ? '_blank' : undefined} rel={file.type === 'image' ? 'noreferrer' : undefined} className="flex min-h-10 min-w-0 items-center gap-2 rounded-lg bg-black/10 px-2 text-xs hover:bg-black/20"><span className="shrink-0">{file.type === 'pdf' ? <FileText className="h-4 w-4" /> : <ImageIcon className="h-4 w-4" />}</span><span className="truncate">{file.filename}</span></a>)}</div> : null}
+            </>
           ) : (
             <div className="text-sm">
               <MarkdownRenderer content={displayContent} />

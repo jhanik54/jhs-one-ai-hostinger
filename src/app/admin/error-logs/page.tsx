@@ -5,24 +5,15 @@ import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { formatDate } from '@/lib/utils/format'
-import { createClient } from '@/lib/supabase/client'
 import { AlertTriangle } from 'lucide-react'
 
 export default function AdminErrorLogsPage() {
-  const [logs, setLogs] = useState<any[]>([])
+  const [logs, setLogs] = useState<{id:string|number;provider:string;errorCode?:string|null;createdAt:string}[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const load = async () => {
-      const supabase = createClient()
-      const { data } = await supabase
-        .from('provider_logs')
-        .select('*')
-        .eq('success', false)
-        .order('created_at', { ascending: false })
-        .limit(100)
-
-      setLogs(data || [])
+      const response=await fetch('/api/admin/providers');const data=await response.json();setLogs((data.logs||[]).filter((x:{success:boolean})=>!x.success))
       setLoading(false)
     }
     load()
@@ -54,15 +45,15 @@ export default function AdminErrorLogsPage() {
                 </tr>
               </thead>
               <tbody>
-                {logs.map((log: any) => (
+                {logs.map((log) => (
                   <tr key={log.id} className="border-b border-gray-100 dark:border-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-900/50">
                     <td className="py-3 px-4">
                       <Badge variant="danger" className="capitalize">{log.provider}</Badge>
                     </td>
                     <td className="py-3 px-4 text-gray-600 dark:text-gray-400 max-w-md truncate">
-                      {log.error_message || 'Unknown error'}
+                      {log.errorCode || 'Provider request failed'}
                     </td>
-                    <td className="py-3 px-4 text-gray-500 whitespace-nowrap">{formatDate(log.created_at)}</td>
+                    <td className="py-3 px-4 text-gray-500 whitespace-nowrap">{formatDate(log.createdAt)}</td>
                   </tr>
                 ))}
               </tbody>

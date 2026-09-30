@@ -1,9 +1,8 @@
 'use client'
 
-import { AlertCircle, RefreshCw } from 'lucide-react'
+import { AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useChatStore } from '@/store/chat-store'
-import { useChat } from '@/lib/hooks/useChat'
 
 interface ErrorBannerProps {
   message: string

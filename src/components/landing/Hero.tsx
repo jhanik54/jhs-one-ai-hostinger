@@ -2,22 +2,12 @@
 
 import { Sparkles, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
-import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
 export function Hero() {
   const router = useRouter()
 
-  const handleSignIn = async () => {
-    const supabase = createClient()
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    })
-    if (error) console.error(error)
-  }
+  const handleSignIn = () => router.push('/login')
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-gradient-to-b from-white to-gray-50 dark:from-gray-950 dark:to-gray-900">
@@ -32,7 +22,7 @@ export function Hero() {
         <h1 className="text-5xl sm:text-6xl font-bold text-gray-900 dark:text-gray-100 mb-6 tracking-tight">
           Meet{' '}
           <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            JHS One Ai
+            JH One AI
           </span>
         </h1>
 
