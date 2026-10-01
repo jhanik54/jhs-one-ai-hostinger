@@ -21,12 +21,12 @@ test('model configuration rejects unknown, empty, or disabled defaults', () => {
   assert.equal(validateModelConfiguration(empty), null)
 
   const disabledDefault = structuredClone(DEFAULT_MODEL_CONFIGURATION)
-  disabledDefault.openrouter.enabled = ['google/gemini-2.0-flash-001']
+  disabledDefault.openrouter.enabled = ['google/gemini-3.5-flash']
   assert.equal(validateModelConfiguration(disabledDefault), null)
 })
 
 test('duplicate model ids are deduplicated in valid configuration', () => {
   const duplicated = structuredClone(DEFAULT_MODEL_CONFIGURATION)
-  duplicated.gemini.enabled = ['gemini-2.0-flash', 'gemini-2.0-flash']
-  assert.deepEqual(validateModelConfiguration(duplicated).gemini.enabled, ['gemini-2.0-flash'])
+  duplicated.gemini.enabled = ['gemini-3.5-flash', 'gemini-3.5-flash']
+  assert.deepEqual(validateModelConfiguration(duplicated).gemini.enabled, ['gemini-3.5-flash'])
 })

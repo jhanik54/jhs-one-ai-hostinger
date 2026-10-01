@@ -2,25 +2,25 @@ import type { ProviderName } from '@/types'
 
 export const AVAILABLE_MODELS: Record<ProviderName, readonly { id: string; label: string; capabilities: readonly ('text' | 'vision')[] }[]> = {
   gemini: [
-    { id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', capabilities: ['text', 'vision'] },
-    { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', capabilities: ['text', 'vision'] },
+    { id: 'gemini-3.5-flash', label: 'Gemini 3.5 Flash', capabilities: ['text', 'vision'] },
+    { id: 'gemini-3.6-flash', label: 'Gemini 3.6 Flash', capabilities: ['text', 'vision'] },
   ],
   groq: [
-    { id: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B Versatile', capabilities: ['text'] },
-    { id: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B Instant', capabilities: ['text'] },
+    { id: 'openai/gpt-oss-120b', label: 'GPT OSS 120B', capabilities: ['text'] },
+    { id: 'openai/gpt-oss-20b', label: 'GPT OSS 20B', capabilities: ['text'] },
   ],
   openrouter: [
     { id: 'openai/gpt-4o-mini', label: 'OpenAI GPT-4o mini', capabilities: ['text', 'vision'] },
-    { id: 'google/gemini-2.0-flash-001', label: 'Google Gemini 2.0 Flash', capabilities: ['text', 'vision'] },
+    { id: 'google/gemini-3.5-flash', label: 'Google Gemini 3.5 Flash', capabilities: ['text', 'vision'] },
   ],
 }
 
 export type ModelConfiguration = Record<ProviderName, { enabled: string[]; defaultModel: string }>
 
 export const DEFAULT_MODEL_CONFIGURATION: ModelConfiguration = {
-  gemini: { enabled: ['gemini-2.0-flash', 'gemini-2.5-flash'], defaultModel: 'gemini-2.0-flash' },
-  groq: { enabled: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'], defaultModel: 'llama-3.3-70b-versatile' },
-  openrouter: { enabled: ['openai/gpt-4o-mini', 'google/gemini-2.0-flash-001'], defaultModel: 'openai/gpt-4o-mini' },
+  gemini: { enabled: ['gemini-3.6-flash', 'gemini-3.5-flash'], defaultModel: 'gemini-3.6-flash' },
+  groq: { enabled: ['openai/gpt-oss-120b', 'openai/gpt-oss-20b'], defaultModel: 'openai/gpt-oss-120b' },
+  openrouter: { enabled: ['openai/gpt-4o-mini', 'google/gemini-3.6-flash'], defaultModel: 'openai/gpt-4o-mini' },
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

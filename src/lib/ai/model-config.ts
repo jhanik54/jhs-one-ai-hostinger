@@ -8,5 +8,11 @@ export type { ModelConfiguration } from './model-catalog'
 
 export async function getModelConfiguration(): Promise<ModelConfiguration> {
   const row = await db.appSetting.findUnique({ where: { key: 'model_configuration' }, select: { value: true } })
-  return validateModelConfiguration(row?.value) ?? DEFAULT_MODEL_CONFIGURATION
+  if (!row) return DEFAULT_MODEL_CONFIGURATION
+  const configuration = validateModelConfiguration(row.value)
+  if (!configuration) {
+    console.warn('[ai-gateway] saved model configuration is invalid for the current catalog; defaults are active')
+    return DEFAULT_MODEL_CONFIGURATION
+  }
+  return configuration
 }

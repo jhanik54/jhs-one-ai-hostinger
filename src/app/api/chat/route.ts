@@ -11,13 +11,27 @@ import type { ChatRequest } from '@/types'
 const requestTimes = new Map<string, number[]>()
 const limitRequests = 8
 
+function safeErrorDetails(error: unknown) {
+  if (!error || typeof error !== 'object') return {}
+  const value = error as { name?: unknown; code?: unknown; status?: unknown }
+  const status = Number(value.status)
+  return {
+    ...(typeof value.name === 'string' ? { errorName: value.name.slice(0, 80) } : {}),
+    ...(typeof value.code === 'string' && /^P\d{4}$/.test(value.code) ? { prismaCode: value.code } : {}),
+    ...(Number.isInteger(status) && status >= 100 && status <= 599 ? { httpStatus: status } : {}),
+  }
+}
+
 export async function POST(req: NextRequest) {
+  let stage = 'authentication'
   try {
     const user = await requireUser()
     if(Number(req.headers.get('content-length')||0)>128000)return NextResponse.json({error:'Request is too large.'},{status:413})
+    stage = 'maintenance_check'
     const unavailable=await maintenanceResponse(Boolean(user.admin))
     if(unavailable)return unavailable
 
+    stage = 'request_validation'
     const body: ChatRequest = await req.json()
     const { message, conversation_id } = body
     const fileIds = Array.isArray(body.file_ids) ? [...new Set(body.file_ids)] : []
@@ -44,6 +58,7 @@ export async function POST(req: NextRequest) {
     }
     const duplicate=await db.message.findUnique({where:{conversationId_requestId:{conversationId:conversation_id,requestId}}})
     if(duplicate)return NextResponse.json({error:'This message was already submitted.'},{status:409})
+    stage = 'plan_and_usage'
     const planId=user.admin?'ULTRA':(await db.subscription.findFirst({where:{userId:user.id,status:'approved'},orderBy:{updatedAt:'desc'},select:{planId:true}}))?.planId||'NORMAL'
     const plan=await db.plan.findUnique({where:{id:planId}})
     if(!plan)return NextResponse.json({error:'Your account plan is not configured.'},{status:503})
@@ -60,6 +75,7 @@ export async function POST(req: NextRequest) {
     if (files.length) await db.uploadedFile.updateMany({where:{id:{in:files.map(file=>file.id)},userId:user.id,conversationId:conversation_id,messageId:null},data:{messageId:userMessage.id}})
     let routed:Awaited<ReturnType<typeof routeAIRequest>>
     try {
+      stage = 'ai_gateway'
       let prompt = message.trim()
       const images:{mimeType:string;data:string}[]=[]
       let pdfBudget=42000
@@ -79,6 +95,7 @@ export async function POST(req: NextRequest) {
     }
     catch(error) { await db.message.deleteMany({where:{conversationId:conversation_id,requestId}}).catch(()=>undefined);throw error }
     const { stream, usedProvider, keyIndex, release } = routed
+    stage = 'provider_stream'
 
     const startTime = Date.now()
 
@@ -115,8 +132,13 @@ export async function POST(req: NextRequest) {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({type:'done'})}\n\n`))
           release()
           controller.close()
-        } catch {
+        } catch (error) {
           release()
+          console.error('[chat-api] provider stream failed', JSON.stringify({
+            provider: usedProvider,
+            keyIndex,
+            ...safeErrorDetails(error),
+          }))
           await db.message.deleteMany({where:{conversationId:conversation_id,requestId}}).catch(()=>undefined)
           const responseTime = Date.now() - startTime
 
@@ -144,6 +166,7 @@ export async function POST(req: NextRequest) {
       },
     })
   } catch (err) {
+    console.error('[chat-api] request failed', JSON.stringify({ stage, ...safeErrorDetails(err) }))
     if (err && typeof err === 'object' && 'code' in err && (err as {code?:string}).code === 'P2002') return NextResponse.json({error:'This message was already submitted.'},{status:409})
     if (err && typeof err === 'object' && 'code' in err && (err as {code?:string}).code === 'UNAUTHORIZED') return NextResponse.json({ error: 'Sign in to continue.' }, { status: 401 })
     return new Response(

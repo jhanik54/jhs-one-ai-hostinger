@@ -125,7 +125,7 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    const email = profile.email.toLowerCase()
+    const email = profile.email.trim().toLowerCase()
     stage = 'account_lookup'
     const account = await db.account.findUnique({
       where: { provider_providerAccountId: { provider: 'google', providerAccountId: profile.id } },
@@ -153,7 +153,9 @@ export async function GET(req: NextRequest) {
 
     if (user.status !== 'active') return fail('user_not_active')
 
-    if (process.env.INITIAL_SUPERADMIN_EMAIL?.toLowerCase() === email) {
+    const bootstrapEmail = process.env.INITIAL_SUPERADMIN_EMAIL?.trim().toLowerCase()
+    const bootstrapEmailMatched = Boolean(bootstrapEmail && bootstrapEmail === email)
+    if (bootstrapEmailMatched) {
       stage = 'initial_admin_assignment'
       await db.adminUser.upsert({
         where: { userId: user.id },
@@ -162,13 +164,23 @@ export async function GET(req: NextRequest) {
       })
     }
 
+    stage = 'admin_role_lookup'
+    const adminRecord = await db.adminUser.findUnique({ where: { userId: user.id }, select: { role: true } })
+    const isAdmin = Boolean(adminRecord)
+    console.info('[google-oauth] role resolved', JSON.stringify({
+      bootstrapEmailConfigured: Boolean(bootstrapEmail),
+      bootstrapEmailMatched,
+      adminRecordPresent: isAdmin,
+      adminRole: adminRecord?.role ?? null,
+    }))
+
     stage = 'session_creation'
     await createSession(user.id)
 
     stage = 'activity_log'
     await db.userActivityLog.create({ data: { userId: user.id, action: 'google_login' } })
 
-    const response = NextResponse.redirect(appUrl('/chat'))
+    const response = NextResponse.redirect(appUrl(isAdmin ? '/admin' : '/chat'))
     response.cookies.delete('jh_oauth_state')
     return response
   } catch (error) {

@@ -4,7 +4,7 @@ export async function callGroq(
   apiKey: string,
   message: string,
   history: { role: 'user' | 'assistant'; content: string }[],
-  modelId = 'llama-3.3-70b-versatile'
+  modelId = 'openai/gpt-oss-120b'
 ): Promise<ReadableStream> {
   const client = new OpenAI({
     apiKey,
