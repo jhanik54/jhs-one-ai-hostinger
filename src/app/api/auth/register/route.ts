@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
     if (process.env.DISABLE_REGISTRATION === 'true'||registrationSetting?.value===false) return NextResponse.json({ error: 'Registration is temporarily disabled.' }, { status: 403 })
     const { email, password, name } = await req.json()
     if (typeof email !== 'string' || !/^\S+@\S+\.\S+$/.test(email) || typeof password !== 'string' || password.length < 10 || password.length > 128) return NextResponse.json({ error: 'Enter a valid email and a password of at least 10 characters.' }, { status: 400 })
-    const id = crypto.randomUUID().replaceAll('-', '')
+    const id = crypto.randomUUID().replaceAll('-', '').slice(0, 30)
     const user = await db.user.create({ data: { id, email: email.trim().toLowerCase(), passwordHash: await hashPassword(password), name: typeof name === 'string' ? name.slice(0, 160) : null, profile: { create: { displayName: typeof name === 'string' ? name.slice(0,160) : null } } } })
     await db.userActivityLog.create({ data: { userId: user.id, action: 'registration' } })
     await createSession(user.id)
